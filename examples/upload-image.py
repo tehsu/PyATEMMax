@@ -42,7 +42,7 @@ def upload_image(switcher_ip: str, image_path: str, slot: int = 0, media_player:
     
     # Check if media pool lock is available
     lock_id = 0  # 0 = media pool stills
-    if lock_id in switcher.data.mediaPoolLock and switcher.data.mediaPoolLock[lock_id].locked:
+    if lock_id in switcher.mediaPoolLock and switcher.mediaPoolLock[lock_id].locked:
         print(f"ERROR: Media pool lock {lock_id} is already held")
         print("Please wait for the lock to be released or use the ATEM Software Control to release it")
         switcher.disconnect()
@@ -62,12 +62,12 @@ def upload_image(switcher_ip: str, image_path: str, slot: int = 0, media_player:
     max_wait = 5
     waited = 0
     while waited < max_wait:
-        if lock_id in switcher.data.mediaPoolLock and switcher.data.mediaPoolLock[lock_id].locked:
+        if lock_id in switcher.mediaPoolLock and switcher.mediaPoolLock[lock_id].locked:
             break
         time.sleep(0.1)
         waited += 0.1
     
-    if lock_id not in switcher.data.mediaPoolLock or not switcher.data.mediaPoolLock[lock_id].locked:
+    if lock_id not in switcher.mediaPoolLock or not switcher.mediaPoolLock[lock_id].locked:
         print("ERROR: Lock was not acquired within timeout")
         switcher.disconnect()
         return False
@@ -75,7 +75,7 @@ def upload_image(switcher_ip: str, image_path: str, slot: int = 0, media_player:
     print("Lock acquired")
     
     # Get video format to determine resolution
-    video_format = switcher.atem.videoModeFormats.byValue(switcher.data.videoMode.format.value)
+    video_format = switcher.atem.videoModeFormats.byValue(switcher.videoMode.format.value)
     print(f"Video format: {video_format.name}")
     
     # Determine resolution based on video format
@@ -126,17 +126,17 @@ def upload_image(switcher_ip: str, image_path: str, slot: int = 0, media_player:
         max_wait = 30
         waited = 0
         while waited < max_wait:
-            if not switcher.data.fileTransfer.transferActive:
+            if not switcher.fileTransfer.transferActive:
                 break
             if waited % 2 == 0:
-                remaining = len(switcher.data.fileTransfer.transferData)
+                remaining = len(switcher.fileTransfer.transferData)
                 total = len(image_data)
                 percent = ((total - remaining) / total * 100) if total > 0 else 100
                 print(f"Upload progress: {percent:.1f}% ({total - remaining}/{total} bytes)")
             time.sleep(0.5)
             waited += 0.5
         
-        if switcher.data.fileTransfer.transferActive:
+        if switcher.fileTransfer.transferActive:
             print("WARNING: Upload did not complete within timeout")
         else:
             print("Upload completed successfully")
