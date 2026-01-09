@@ -14,6 +14,7 @@ from typing import Callable
 from .ATEMUtils import boolBit, mapValue
 from .ATEMProtocolEnums import *
 from .ATEMException import ATEMException
+from .StateData import MediaPoolLock
 
 # --------------------------------------------------
 # This is a trick to have type hints from classes

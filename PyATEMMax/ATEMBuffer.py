@@ -266,7 +266,7 @@ class ATEMBuffer():
 
         numBytes = len(value)
 
-        if 0 < bufferIndex >= (self.size - numBytes):
+        if bufferIndex < 0 or bufferIndex >= (self.size - numBytes):
             raise ATEMException(f"ATEMBuffer.setBytes(): Can't set bytes" \
                             f" @offset[{offset}]" \
                             f" - buffIndex[{bufferIndex}]" \
