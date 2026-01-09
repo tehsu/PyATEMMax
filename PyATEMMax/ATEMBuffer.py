@@ -256,6 +256,26 @@ class ATEMBuffer():
         self._buf[bufferIndex:bufferIndex+numBytes-1] = list(buf)
 
 
+    def setBytes(self, offset: int, value: bytes) -> None:
+        """Set raw bytes"""
+
+        if self._userOffsetCallbackSet:
+            bufferIndex = self._userOffsetCallback(offset)
+        else:
+            bufferIndex = offset
+
+        numBytes = len(value)
+
+        if 0 < bufferIndex >= (self.size - numBytes):
+            raise ATEMException(f"ATEMBuffer.setBytes(): Can't set bytes" \
+                            f" @offset[{offset}]" \
+                            f" - buffIndex[{bufferIndex}]" \
+                            f" - numBytes[{numBytes}]" \
+                            f" - buffLen[{self.size}]")
+
+        self._buf[bufferIndex:bufferIndex+numBytes] = list(value)
+
+
     # #######################################################################
     #
     #  Integer

@@ -14,12 +14,14 @@ from PyATEMMax.StateData.ColorGenerator import *
 from PyATEMMax.StateData.DownConverter import *
 from PyATEMMax.StateData.DownStreamKeyer import *
 from PyATEMMax.StateData.FadeToBlack import *
+from PyATEMMax.StateData.FileTransfer import *
 from PyATEMMax.StateData.InputProperties import *
 from PyATEMMax.StateData.Key import *
 from PyATEMMax.StateData.Keyer import *
 from PyATEMMax.StateData.LastStateChange import *
 from PyATEMMax.StateData.Macro import *
 from PyATEMMax.StateData.MediaPlayer import *
+from PyATEMMax.StateData.MediaPoolLock import *
 from PyATEMMax.StateData.MediaPoolStorage import *
 from PyATEMMax.StateData.MixEffect import *
 from PyATEMMax.StateData.MultiViewer import *
