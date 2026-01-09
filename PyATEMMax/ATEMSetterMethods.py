@@ -4089,3 +4089,94 @@ class ATEMSetterMethods():
         self.switcher._outBuf.setU8Flag(0, 2)
         self.switcher._outBuf.setU8(4, master)
         self.switcher._finishCommandPacket()
+
+
+    # #######################################################################
+    #
+    #  Media Pool Lock Methods
+    #
+
+    def acquireMediaPoolLock(self, lockId: int, index: int) -> bool:
+        """Acquire Media Pool Lock
+
+        Args:
+            lockId (int): Lock ID (0 for media pool stills)
+            index (int): Still or clip index
+
+        Returns:
+            bool: True if lock request was sent, False if already locked
+        """
+
+        # Check if already locked
+        if lockId in self.data.mediaPoolLock and self.data.mediaPoolLock[lockId].locked:
+            return False
+
+        self.switcher._prepareCommandPacket("PLCK", 8)
+        self.switcher._outBuf.setU8(1, lockId)
+        self.switcher._outBuf.setU8(3, index)
+        self.switcher._outBuf.setU8(5, 1)  # 1 = acquire
+        self.switcher._finishCommandPacket()
+        return True
+
+
+    def releaseMediaPoolLock(self, lockId: int) -> None:
+        """Release Media Pool Lock
+
+        Args:
+            lockId (int): Lock ID (0 for media pool stills)
+        """
+
+        self.switcher._prepareCommandPacket("LOCK", 4)
+        self.switcher._outBuf.setU8(1, lockId)
+        self.switcher._finishCommandPacket()
+
+
+    # #######################################################################
+    #
+    #  Media Pool Upload Methods
+    #
+
+    def uploadImageToMediaPool(self, index: int, name: str, image_data: bytes) -> int:
+        """Upload image to media pool
+
+        Args:
+            index (int): Still index (0-19 typically)
+            name (str): File name for the image
+            image_data (bytes): Image data in ATEM format (UYVY 4:2:2)
+
+        Returns:
+            int: Transfer ID
+
+        Note:
+            You must acquire the media pool lock before calling this method.
+            Use acquireMediaPoolLock(0, index) first.
+            The image_data should be in UYVY 4:2:2 format.
+            Use convertImageToATEMFormat() to convert a PIL Image.
+        """
+
+        import hashlib
+
+        # Increment transfer ID
+        self.data.fileTransfer.lastTransferId += 1
+        transfer_id = self.data.fileTransfer.lastTransferId
+
+        # Store transfer info
+        self.data.fileTransfer.transferId = transfer_id
+        self.data.fileTransfer.transferStoreId = 0  # 0 = media pool stills
+        self.data.fileTransfer.transferIndex = index
+        self.data.fileTransfer.transferName = name
+        self.data.fileTransfer.transferData = image_data
+        self.data.fileTransfer.transferHash = hashlib.md5(image_data).digest()
+        self.data.fileTransfer.transferActive = True
+
+        # Send FTSD (File Transfer Start Download) command
+        self.switcher._prepareCommandPacket("FTSD", 16)
+        self.switcher._outBuf.setU16(0, transfer_id)
+        self.switcher._outBuf.setU8(2, 0)  # storeId = 0 (media pool stills)
+        self.switcher._outBuf.setU8(7, index)
+        self.switcher._outBuf.setU32(8, len(image_data))
+        self.switcher._outBuf.setU8(13, 1)  # 0x01 = write, 0x02 = clear
+        self.switcher._finishCommandPacket()
+
+        return transfer_id
+

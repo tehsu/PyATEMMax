@@ -14,6 +14,7 @@ from typing import Callable
 from .ATEMUtils import boolBit, mapValue
 from .ATEMProtocolEnums import *
 from .ATEMException import ATEMException
+from .StateData import MediaPoolLock
 
 # --------------------------------------------------
 # This is a trick to have type hints from classes
@@ -714,6 +715,75 @@ class ATEMCommandHandlers():
                 self._d.mediaPlayer.stillFile[stillBank].fileName = self._inBuf.getString(24, fileNameLen)
 
 
+    def _handleLOCK(self) -> None:
+        """Handle Lock State Change"""
+        # This is sent when a lock is released
+        lockId = self._inBuf.getU8(1)
+        if lockId not in self._d.mediaPoolLock:
+            self._d.mediaPoolLock[lockId] = MediaPoolLock()
+        self._d.mediaPoolLock[lockId].locked = False
+        self._d.mediaPoolLock[lockId].index = 0
+
+
+    def _handleLKST(self) -> None:
+        """Handle Lock Status"""
+        lockId = self._inBuf.getU8(1)
+        locked = self._inBuf.getU8Flag(2, 0)
+        index = self._inBuf.getU8(3)
+        
+        if lockId not in self._d.mediaPoolLock:
+            self._d.mediaPoolLock[lockId] = MediaPoolLock()
+        self._d.mediaPoolLock[lockId].locked = locked
+        self._d.mediaPoolLock[lockId].index = index
+
+
+    def _handleFTCD(self) -> None:
+        """Handle File Transfer Continue Download"""
+        transferId = self._inBuf.getU16(6)
+        count = self._inBuf.getU8(15)
+        
+        if transferId == self._d.fileTransfer.transferId:
+            # Trigger sending of data chunks
+            self._flushTransferBuffer(count)
+
+
+    def _handleFTDC(self) -> None:
+        """Handle File Transfer Download Complete"""
+        transferId = self._inBuf.getU16(6)
+        # Transfer is complete - fire event if needed
+        # For now just mark it as not active
+        if transferId == self._d.fileTransfer.transferId:
+            self._d.fileTransfer.transferActive = False
+
+
+    def _handleFTDa(self) -> None:
+        """Handle File Transfer Data (incoming data for upload from switcher)"""
+        transferId = self._inBuf.getU16(6)
+        # This would be used when downloading from switcher
+        # Not implemented for now as we're focusing on upload
+        pass
+
+
+    def _handleFTSU(self) -> None:
+        """Handle File Transfer Start Upload (request from switcher)"""
+        # This would be used when downloading from switcher
+        # Not implemented for now as we're focusing on upload
+        pass
+
+
+    def _handleFTSD(self) -> None:
+        """Handle File Transfer Start Download (ack from switcher)"""
+        # This is the acknowledgment that the switcher is ready to receive data
+        # The switcher should now send FTCD to request data chunks
+        pass
+
+
+    def _handleFTFD(self) -> None:
+        """Handle File Transfer File Description (ack from switcher)"""
+        # This is sent after all data has been transferred
+        pass
+
+
     def _handleMRPr(self) -> None:
         self._d.macro.runStatus.state.running = self._inBuf.getU8Flag(0, 0)
         self._d.macro.runStatus.state.waiting = self._inBuf.getU8Flag(0, 1)
@@ -909,3 +979,45 @@ class ATEMCommandHandlers():
 
     def _handleNOTIMPLEMENTED(self) -> None:
         pass
+
+
+    def _flushTransferBuffer(self, count: int) -> None:
+        """Send data chunks to switcher during file transfer"""
+        i = 0
+        while len(self._d.fileTransfer.transferData) > 0 and i < count:
+            # Each chunk can be up to 1392 bytes
+            chunk_size = min(1392, len(self._d.fileTransfer.transferData))
+            data = self._d.fileTransfer.transferData[:chunk_size]
+            self._d.fileTransfer.transferData = self._d.fileTransfer.transferData[chunk_size:]
+            self._sendData(self._d.fileTransfer.transferId, data)
+            i += 1
+        
+        # If all data has been sent, send file description
+        if len(self._d.fileTransfer.transferData) == 0:
+            self._sendFileDescription()
+            self._d.fileTransfer.transferActive = False
+        else:
+            self._d.fileTransfer.transferActive = True
+
+
+    def _sendData(self, transfer_id: int, data: bytes) -> None:
+        """Send a data chunk to switcher"""
+        payload_size = len(data) + 4
+        self._sw._prepareCommandPacket("FTDa", payload_size)
+        self._sw._outBuf.setU16(0, transfer_id)
+        self._sw._outBuf.setU16(2, len(data))
+        self._sw._outBuf.setBytes(4, data)
+        self._sw._finishCommandPacket()
+
+
+    def _sendFileDescription(self) -> None:
+        """Send file description to switcher after all data has been sent"""
+        self._sw._prepareCommandPacket("FTFD", 212)
+        self._sw._outBuf.setU16(0, self._d.fileTransfer.transferId)
+        # File name (up to 194 bytes)
+        name_bytes = self._d.fileTransfer.transferName.encode('utf-8')[:194]
+        self._sw._outBuf.setBytes(2, name_bytes)
+        # MD5 hash (16 bytes at offset 194)
+        self._sw._outBuf.setBytes(194, self._d.fileTransfer.transferHash)
+        self._sw._finishCommandPacket()
+

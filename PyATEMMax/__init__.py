@@ -10,4 +10,5 @@ from .ATEMMax import ATEMMax
 from .ATEMProtocol import ATEMProtocol
 from .ATEMProtocolEnums import *
 from .ATEMException import ATEMException
+from .ATEMImageConverter import convertImageToATEMFormat, loadAndConvertImage
 from . import StateData
