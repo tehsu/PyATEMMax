@@ -992,11 +992,11 @@ class ATEMCommandHandlers():
             i += 1
         
         # If all data has been sent, send file description
-        if len(self._d.fileTransfer.transferData) == 0 and not self._d.fileTransfer.transferActive:
+        if len(self._d.fileTransfer.transferData) == 0:
             self._sendFileDescription()
-        
-        # Update transfer active status
-        self._d.fileTransfer.transferActive = len(self._d.fileTransfer.transferData) > 0
+            self._d.fileTransfer.transferActive = False
+        else:
+            self._d.fileTransfer.transferActive = True
 
 
     def _sendData(self, transfer_id: int, data: bytes) -> None:

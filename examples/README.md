@@ -13,3 +13,4 @@ A few code examples. Find step-by-step explanations in [the documentation](https
 * `scheduled-tasks`: A more elaborate example, including scheduled tasks.
 * `tally-str`: A different (maybe easier) way to access tally information.
 * `tally`: Quick tally indicator.
+* `upload-image`: Upload an image to the ATEM media pool.
